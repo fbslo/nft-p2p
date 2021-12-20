@@ -1,0 +1,153 @@
+//SPDX-License-Identifier: Unlicense
+pragma solidity ^0.8.0;
+
+import "./interfaces/IERC721.sol";
+
+/// @title A P2P NFT trading contract
+/// @author @fbsloXBT
+/// @notice Use this contract to swap between 2 NFTs
+
+contract SwapNFTs {
+  /// @notice Current trade ID (latest trade id = id - 1)
+  uint256 public id;
+  /// @notice Trade expiration in blocks
+  uint256 public expirationLimit;
+
+  /// @notice Fee in ETH required to use this contract as a buyer
+  uint256 public authorizationFee;
+  /// @notice Mapping to store all authorized users
+  mapping(address => bool) public isBuyerAuthorized;
+  /// @notice Address that can withdraw collected authorization fees
+  address public admin;
+
+  /// @notice Struct to store details about each trade
+  struct Trade {
+    address buyer; // address proposing the trade
+    address seller; //address accepting the trade
+    address collection_1; //buyer's NFT address
+    address collection_2; //seller's NFT address
+    uint256 id_1; //buyer's NFT id
+    uint256 id_2; //seller's NFT id
+    bool executed;
+    uint256 expiration;
+  }
+  /// @notice Mapping to connect id to trade details
+  mapping (uint256 => Trade) public trades;
+
+  /// @notice Emitted when trade is proposed
+  event TradeProposed(uint256 id);
+  /// @notice Emitted when trade is executed
+  event TradeExecuted(uint256 id);
+  /// @notice Emitted when new buyer is authorized
+  event Authorization(address user, uint256 fee);
+
+  /// @notice Mapping to allow function to be called only by admin
+  modifier onlyAdmin(){
+    require(msg.sender == admin, 'not admin');
+    _;
+  }
+
+  /// @notice Construct a new P2P NFT trading contract
+  constructor(){
+    id = 0;
+    expirationLimit = 86400; //14 days @ 14s block time
+    authorizationFee = 0.01 ether;
+    admin = msg.sender;
+  }
+
+  /**
+   * @notice Propose new P2P trade, can be called by buyer
+   * @param buyer Address proposing the trade
+   * @param seller Address to whom trade is proposed
+   * @param collection_1 Address of buyer's NFT
+   * @param collection_2 Address of sellers's NFT
+   * @param id_1 ID of buyer's NFT
+   * @param id_1 ID of buyer's NFT
+   */
+  function proposeTrade(
+    address buyer,
+    address seller,
+    address collection_1,
+    address collection_2,
+    uint256 id_1,
+    uint256 id_2
+  ) external {
+    require(msg.sender == buyer, 'Not a buyer');
+    require(isBuyerAuthorized[msg.sender], 'not authorized');
+
+    trades[id] = Trade(
+      buyer,
+      seller,
+      collection_1,
+      collection_2,
+      id_1,
+      id_2,
+      false,
+      block.number + expirationLimit
+    );
+    emit TradeProposed(id);
+
+    id++;
+  }
+
+  /**
+   * @notice Execute already proposed P2P trade, can be called by seller
+   * @param id_ ID of the proposed trade
+   */
+  function executeTrade(uint256 id_) external {
+    require(msg.sender == trades[id_].seller, 'Not a seller');
+    require(trades[id_].expiration >= block.number, 'expired');
+    require(!trades[id_].executed, 'executed');
+
+    //send buyer's NFT to seller
+    IERC721(trades[id_].collection_1).transferFrom(trades[id_].buyer, trades[id_].seller, trades[id_].id_1);
+    //send seller's NFT to buyer
+    IERC721(trades[id_].collection_2).transferFrom(trades[id_].seller, trades[id_].buyer, trades[id_].id_2);
+
+    trades[id_].executed = true;
+
+    emit TradeExecuted(id_);
+  }
+
+  /**
+   * @notice Autorize new user, payment required
+   */
+  function authorize() external payable {
+    require(msg.value >= authorizationFee, 'Pay more!');
+    isBuyerAuthorized[msg.sender] = true;
+
+    emit Authorization(msg.sender, msg.value);
+  }
+
+  /**
+   * @notice View function to get trade details
+   * @param id_ ID of the trade
+   */
+  function getProposedTrade(uint256 id_) external view returns(Trade memory _trade) {
+    return trades[id_];
+  }
+
+  /**
+   * @notice View function to see if user is authorized
+   * @param user_ Address of the user
+   */
+  function getAuthorization(address user_) external view returns (bool) {
+    return isBuyerAuthorized[user_];
+  }
+
+  /**
+   * @notice Governance function to withdraw collected fees
+   */
+  function transferOut() external onlyAdmin {
+    (bool sent,) = admin.call{value: address(this).balance}("");
+    require(sent, "Failed to send ETH");
+  }
+
+  /**
+   * @notice Change admin address
+   * @param newAdmin Address of the new admin
+   */
+  function setAdmin(address newAdmin) external onlyAdmin {
+    admin = newAdmin;
+  }
+}
