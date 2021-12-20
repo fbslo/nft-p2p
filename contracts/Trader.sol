@@ -104,6 +104,12 @@ contract SwapNFTs {
     //send seller's NFT to buyer
     IERC721(trades[id_].collection_2).transferFrom(trades[id_].seller, trades[id_].buyer, trades[id_].id_2);
 
+    address owner_1_after = IERC721(trades[id_].collection_1).ownerOf(trades[id_].id_1);
+    address owner_2_after = IERC721(trades[id_].collection_2).ownerOf(trades[id_].id_2);
+
+    require(owner_1_after == trades[id_].seller, "Transfer failed");
+    require(owner_2_after == trades[id_].buyer, "Transfer failed");
+
     trades[id_].executed = true;
 
     emit TradeExecuted(id_);
