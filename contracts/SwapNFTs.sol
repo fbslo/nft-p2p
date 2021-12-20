@@ -43,7 +43,7 @@ contract SwapNFTs {
 
   /// @notice Mapping to allow function to be called only by admin
   modifier onlyAdmin(){
-    require(msg.sender == admin, 'not admin');
+    require(msg.sender == admin, 'Not admin');
     _;
   }
 
@@ -73,7 +73,7 @@ contract SwapNFTs {
     uint256 id_2
   ) external {
     require(msg.sender == buyer, 'Not a buyer');
-    require(isBuyerAuthorized[msg.sender], 'not authorized');
+    require(isBuyerAuthorized[msg.sender], 'Not authorized');
 
     trades[id] = Trade(
       buyer,
@@ -96,8 +96,8 @@ contract SwapNFTs {
    */
   function executeTrade(uint256 id_) external {
     require(msg.sender == trades[id_].seller, 'Not a seller');
-    require(trades[id_].expiration >= block.number, 'expired');
-    require(!trades[id_].executed, 'executed');
+    require(trades[id_].expiration >= block.number, 'Expired');
+    require(!trades[id_].executed, 'Already executed');
 
     //send buyer's NFT to seller
     IERC721(trades[id_].collection_1).transferFrom(trades[id_].buyer, trades[id_].seller, trades[id_].id_1);
@@ -113,6 +113,17 @@ contract SwapNFTs {
     trades[id_].executed = true;
 
     emit TradeExecuted(id_);
+  }
+
+  /**
+   * @notice Cancel trade by setting expiration in the past
+   * @param id_ ID of the proposed trade
+   */
+  function cancelProposedTrade(uint256 id_) external {
+    require(!trades[id_].executed, "Already executed");
+    require(msg.sender == trades[id_].buyer, "Only buyer");
+    //set expriation in the past
+    trades[id_].expiration = block.number - 1;
   }
 
   /**
