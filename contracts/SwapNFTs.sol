@@ -68,7 +68,7 @@ contract SwapNFTs {
     address collection_2,
     uint256 id_1,
     uint256 id_2
-  ) external {
+  ) external payable {
     require(msg.sender == buyer, 'Not a buyer');
     require(msg.value >= fee, "fee not paid");
 
