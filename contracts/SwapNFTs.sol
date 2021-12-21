@@ -48,7 +48,7 @@ contract SwapNFTs {
   constructor(){
     id = 0;
     expirationLimit = 86400; //14 days @ 14s block time
-    authorizationFee = 0.005 ether;
+    fee = 0.005 ether;
     admin = msg.sender;
   }
 
@@ -112,8 +112,8 @@ contract SwapNFTs {
     (bool sent,) = admin.call{value:fee}("");
 
     //revoke approvals
-    IERC721(trades[id_].collection_1).approve(address(0), trades[id_].id_1)
-    IERC721(trades[id_].collection_2).approve(address(0), trades[id_].id_2)
+    IERC721(trades[id_].collection_1).approve(address(0), trades[id_].id_1);
+    IERC721(trades[id_].collection_2).approve(address(0), trades[id_].id_2);
 
     emit TradeExecuted(id_);
   }
