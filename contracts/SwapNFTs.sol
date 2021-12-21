@@ -14,9 +14,7 @@ contract SwapNFTs {
   uint256 public expirationLimit;
 
   /// @notice Fee in ETH required to use this contract as a buyer
-  uint256 public authorizationFee;
-  /// @notice Mapping to store all authorized users
-  mapping(address => bool) public isBuyerAuthorized;
+  uint256 public fee;
   /// @notice Address that can withdraw collected authorization fees
   address public admin;
 
@@ -30,6 +28,7 @@ contract SwapNFTs {
     uint256 id_2; //seller's NFT id
     bool executed;
     uint256 expiration;
+    bool feesReclaimed;
   }
   /// @notice Mapping to connect id to trade details
   mapping (uint256 => Trade) public trades;
@@ -38,8 +37,6 @@ contract SwapNFTs {
   event TradeProposed(uint256 id);
   /// @notice Emitted when trade is executed
   event TradeExecuted(uint256 id);
-  /// @notice Emitted when new buyer is authorized
-  event Authorization(address user, uint256 fee);
 
   /// @notice Mapping to allow function to be called only by admin
   modifier onlyAdmin(){
@@ -51,7 +48,7 @@ contract SwapNFTs {
   constructor(){
     id = 0;
     expirationLimit = 86400; //14 days @ 14s block time
-    authorizationFee = 0.01 ether;
+    authorizationFee = 0.005 ether;
     admin = msg.sender;
   }
 
@@ -73,7 +70,7 @@ contract SwapNFTs {
     uint256 id_2
   ) external {
     require(msg.sender == buyer, 'Not a buyer');
-    require(isBuyerAuthorized[msg.sender], 'Not authorized');
+    require(msg.value >= fee, "fee not paid");
 
     trades[id] = Trade(
       buyer,
@@ -83,7 +80,8 @@ contract SwapNFTs {
       id_1,
       id_2,
       false,
-      block.number + expirationLimit
+      block.number + expirationLimit,
+      false
     );
     emit TradeProposed(id);
 
@@ -111,6 +109,7 @@ contract SwapNFTs {
     require(owner_2_after == trades[id_].buyer, "Transfer failed");
 
     trades[id_].executed = true;
+    (bool sent,) = admin.call{value:fee}("");
 
     emit TradeExecuted(id_);
   }
@@ -127,13 +126,15 @@ contract SwapNFTs {
   }
 
   /**
-   * @notice Autorize new user, payment required
+   * @notice Reclaim fees from expired trades
    */
-  function authorize() external payable {
-    require(msg.value >= authorizationFee, 'Pay more!');
-    isBuyerAuthorized[msg.sender] = true;
-
-    emit Authorization(msg.sender, msg.value);
+  function reclaimFees(uint256[] memory ids) external payable {
+    for (uint256 i = 0; i < ids.length; i++){
+      if (block.number > trades[ids[i]].expiration && !trades[ids[i]].executed && !trades[ids[i]].feesReclaimed){
+        trades[ids[i]].feesReclaimed = true;
+        (bool sent,) = trades[ids[i]].buyer.call{value:fee}("");
+      }
+    }
   }
 
   /**
@@ -142,14 +143,6 @@ contract SwapNFTs {
    */
   function getProposedTrade(uint256 id_) external view returns(Trade memory _trade) {
     return trades[id_];
-  }
-
-  /**
-   * @notice View function to see if user is authorized
-   * @param user_ Address of the user
-   */
-  function getAuthorization(address user_) external view returns (bool) {
-    return isBuyerAuthorized[user_];
   }
 
   /**
