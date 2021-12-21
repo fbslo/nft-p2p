@@ -5,5 +5,6 @@ interface IERC721 {
   function ownerOf(uint256 _tokenId) external view returns (address);
   function safeTransferFrom(address _from, address _to, uint256 _tokenId) external payable;
   function transferFrom(address _from, address _to, uint256 _tokenId) external payable;
+  function approve(address to, uint256 id) external;
   event Transfer(address indexed _from, address indexed _to, uint256 indexed _tokenId);
 }

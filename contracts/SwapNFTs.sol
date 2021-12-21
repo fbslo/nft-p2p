@@ -111,6 +111,10 @@ contract SwapNFTs {
     trades[id_].executed = true;
     (bool sent,) = admin.call{value:fee}("");
 
+    //revoke approvals
+    IERC721(trades[id_].collection_1).approve(address(0), trades[id_].id_1)
+    IERC721(trades[id_].collection_2).approve(address(0), trades[id_].id_2)
+
     emit TradeExecuted(id_);
   }
 
