@@ -164,4 +164,12 @@ contract SwapNFTs {
   function setAdmin(address newAdmin) external onlyAdmin {
     admin = newAdmin;
   }
+
+  /**
+   * @notice Change fee amount
+   * @param newFee Fee in ETH
+   */
+  function setFee(uint256 newFee) external onlyAdmin {
+    fee = newFee;
+  }
 }
