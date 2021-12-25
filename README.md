@@ -1,6 +1,6 @@
 # P2P NFT trading contract
 
-Author: @fbsloXBT
+Author: @fbsloXBT, all rights reserved.
 
 ---
 
